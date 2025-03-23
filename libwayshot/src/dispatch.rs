@@ -19,6 +19,17 @@ use wayland_client::{
     },
 };
 use wayland_protocols::{
+    ext::{
+        image_capture_source::v1::client::{
+            ext_image_capture_source_v1::ExtImageCaptureSourceV1,
+            ext_output_image_capture_source_manager_v1::ExtOutputImageCaptureSourceManagerV1,
+        },
+        image_copy_capture::v1::client::{
+            ext_image_copy_capture_frame_v1::{self, ExtImageCopyCaptureFrameV1},
+            ext_image_copy_capture_manager_v1::ExtImageCopyCaptureManagerV1,
+            ext_image_copy_capture_session_v1::{self, ExtImageCopyCaptureSessionV1},
+        },
+    },
     wp::{
         linux_dmabuf::zv1::client::{
             zwp_linux_buffer_params_v1::{self, ZwpLinuxBufferParamsV1},
@@ -277,10 +288,46 @@ impl Dispatch<ZwlrScreencopyFrameV1, ()> for CaptureFrameState {
     }
 }
 
+impl Dispatch<ExtImageCopyCaptureSessionV1, ()> for CaptureFrameState {
+    #[tracing::instrument(skip(frame), ret, level = "trace")]
+    fn event(
+        frame: &mut Self,
+        _: &ExtImageCopyCaptureSessionV1,
+        event: ext_image_copy_capture_session_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            // TODO: handle event
+            _ => {}
+        };
+    }
+}
+
+impl Dispatch<ExtImageCopyCaptureFrameV1, ()> for CaptureFrameState {
+    fn event(
+        _: &mut Self,
+        _: &ExtImageCopyCaptureFrameV1,
+        event: ext_image_copy_capture_frame_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        match event {
+            // TODO: handle event
+            _ => (),
+        }
+    }
+}
+
 delegate_noop!(CaptureFrameState: ignore WlShm);
 delegate_noop!(CaptureFrameState: ignore WlShmPool);
 delegate_noop!(CaptureFrameState: ignore WlBuffer);
 delegate_noop!(CaptureFrameState: ignore ZwlrScreencopyManagerV1);
+delegate_noop!(CaptureFrameState: ignore ExtOutputImageCaptureSourceManagerV1);
+delegate_noop!(CaptureFrameState: ignore ExtImageCaptureSourceV1);
+delegate_noop!(CaptureFrameState: ignore ExtImageCopyCaptureManagerV1);
 
 // TODO: Create a xdg-shell surface, check for the enter event, grab the output from it.
 
