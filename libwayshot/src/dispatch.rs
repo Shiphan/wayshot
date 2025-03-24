@@ -13,7 +13,7 @@ use wayland_client::{
         wl_compositor::WlCompositor,
         wl_output::{self, WlOutput},
         wl_registry::{self, WlRegistry},
-        wl_shm::WlShm,
+        wl_shm::{self, WlShm},
         wl_shm_pool::WlShmPool,
         wl_surface::WlSurface,
     },
@@ -204,6 +204,7 @@ pub struct CaptureFrameState {
     pub dmabuf_formats: Vec<DMAFrameFormat>,
     pub state: Option<FrameState>,
     pub buffer_done: AtomicBool,
+    pub size: Option<Size>,
 }
 
 impl Dispatch<ZwpLinuxDmabufV1, ()> for CaptureFrameState {
@@ -300,14 +301,55 @@ impl Dispatch<ExtImageCopyCaptureSessionV1, ()> for CaptureFrameState {
     ) {
         match event {
             // TODO: handle event
+            ext_image_copy_capture_session_v1::Event::BufferSize { width, height } => {
+                frame.size.replace(Size { width, height });
+            }
+            ext_image_copy_capture_session_v1::Event::ShmFormat { format } => 'block: {
+                let Value(format) = format else {
+                    tracing::debug!("Received Buffer event with unidentified format");
+                    break 'block;
+                };
+                let Some(size) = frame.size else {
+                    tracing::debug!("no size qq");
+                    break 'block;
+                };
+
+                // FIXME: how to get stride???
+                let stride = match format {
+                    wl_shm::Format::Argb8888 | wl_shm::Format::Xbgr8888 => size.width * 4,
+                    _ => {
+                        tracing::debug!("idk this format: {format:?}");
+                        break 'block;
+                    }
+                };
+                tracing::debug!("Received Buffer event with format: {format:?}");
+                frame.formats.push(FrameFormat {
+                    format,
+                    size,
+                    stride,
+                })
+            }
+            ext_image_copy_capture_session_v1::Event::DmabufDevice { .. } => (),
+            ext_image_copy_capture_session_v1::Event::DmabufFormat { format, .. } => {
+                if let Some(size) = frame.size {
+                    frame.dmabuf_formats.push(DMAFrameFormat { format, size });
+                }
+            }
+            ext_image_copy_capture_session_v1::Event::Stopped => {
+                frame.state.replace(FrameState::Finished);
+            }
+            ext_image_copy_capture_session_v1::Event::Done => {
+                frame.buffer_done.store(true, Ordering::SeqCst)
+            }
             _ => {}
         };
     }
 }
 
 impl Dispatch<ExtImageCopyCaptureFrameV1, ()> for CaptureFrameState {
+    #[tracing::instrument(skip(frame), ret, level = "trace")]
     fn event(
-        _: &mut Self,
+        frame: &mut Self,
         _: &ExtImageCopyCaptureFrameV1,
         event: ext_image_copy_capture_frame_v1::Event,
         _: &(),
@@ -316,6 +358,23 @@ impl Dispatch<ExtImageCopyCaptureFrameV1, ()> for CaptureFrameState {
     ) {
         match event {
             // TODO: handle event
+            ext_image_copy_capture_frame_v1::Event::Ready => {
+                frame.state.replace(FrameState::Finished);
+            }
+            ext_image_copy_capture_frame_v1::Event::Failed { .. } => {
+                frame.state.replace(FrameState::Failed);
+            }
+            ext_image_copy_capture_frame_v1::Event::Damage { .. } => (),
+            ext_image_copy_capture_frame_v1::Event::Transform { .. } => (),
+            ext_image_copy_capture_frame_v1::Event::PresentationTime {
+                tv_sec_hi,
+                tv_sec_lo,
+                tv_nsec,
+            } => {
+                let tv_sec = ((tv_sec_hi as u64) << 32) | tv_sec_lo as u64;
+                let duration = std::time::Duration::new(tv_sec, tv_nsec);
+                tracing::debug!("PresentationTime: {duration:?}");
+            }
             _ => (),
         }
     }

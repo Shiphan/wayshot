@@ -570,6 +570,7 @@ impl WayshotConnection {
             dmabuf_formats: Vec::new(),
             state: None,
             buffer_done: AtomicBool::new(false),
+            size: None,
         };
         let mut event_queue = self.conn.new_event_queue::<CaptureFrameState>();
         let qh = event_queue.handle();
@@ -660,6 +661,7 @@ impl WayshotConnection {
             dmabuf_formats: Vec::new(),
             state: None,
             buffer_done: AtomicBool::new(false),
+            size: None,
         };
         let mut event_queue = self.conn.new_event_queue::<CaptureFrameState>();
         let qh = event_queue.handle();
@@ -730,6 +732,7 @@ impl WayshotConnection {
             dmabuf_formats: Vec::new(),
             state: None,
             buffer_done: AtomicBool::new(false),
+            size: None,
         };
         let mut event_queue = self.conn.new_event_queue::<CaptureFrameState>();
         let qh = event_queue.handle();
@@ -828,6 +831,7 @@ impl WayshotConnection {
             dmabuf_formats: Vec::new(),
             state: None,
             buffer_done: AtomicBool::new(false),
+            size: None,
         };
         let mut event_queue = self.conn.new_event_queue::<CaptureFrameState>();
         let qh = event_queue.handle();
