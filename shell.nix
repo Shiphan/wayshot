@@ -13,6 +13,8 @@ pkgs.mkShell {
     libGL.dev
     libgbm
     wayland.dev
+    glib.dev
+    pango.dev
   ];
   RUST_BACKTRACE = 1;
 }
